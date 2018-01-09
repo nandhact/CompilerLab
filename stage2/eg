@@ -1,0 +1,7 @@
+
+begin
+	a=1;
+	b=1;
+	write(a+b+10);
+end; 
+

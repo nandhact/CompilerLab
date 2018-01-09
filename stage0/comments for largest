@@ -1,0 +1,40 @@
+MAGIC
+ENTRY IP
+TEXT SIZE DEFUALT 2048 (2048-4096)
+DATA SIZE IGNORED
+HEAP SIZE - LIB FLAG 1024 (1024-2048)
+STACK SIZE DEFAULT 1024
+LIB FLAG 0
+UNUSED
+2056: setup reg
+
+
+
+
+//jump to line 20 if r0 < r1, to see if r1 > r2
+//else now r0 > r2
+//check if r0 is also> r2
+//	if not, r2 is the greatest, jump to 25
+//greatest is r0 here (if case)
+// end
+// set up r1
+//check if r1 >r2
+//	if r2 >r1, r2 is greatest, jump to 25
+/// greatest is r1
+//end
+//greatest = r2
+//set sp as 4095
+//sys call in r5
+//push sys call
+//arg 1
+//push
+//arg 2 - the data
+//arg 3 push
+//ret val
+//int
+//pop success/failure
+//arg 3
+//arg 2
+//arg 1
+//pop sys call
+//exit
