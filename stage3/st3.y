@@ -27,7 +27,11 @@
 %%
 
 prog : BEG Slist END SEMI {
-		eval($2);
+		//printTree($2);
+		//eval($2);
+		fprintf(fout,"%d\n%d\n%d\n%d\n%d\n%d\n%d\n%d\nMOV SP, 4121\n",0,2056,0,0,0,0,1,0);
+		codeGen($2,fout);
+		fprintf(fout,"INT 10\n");
 		printf("\nSuccessfully parsed program\n");
 		exit(1);
 		}
@@ -45,7 +49,8 @@ Slist : Slist Stmt {
 Stmt : InputStmt {$$=$1;}
 		| OutputStmt{$$=$1;}
 		| AsgStmt {$$=$1;}
-		|IfStmt {$$=$1;};
+		|IfStmt {$$=$1;}
+		|WhileStmt{$$=$1;};
 
 InputStmt: READ '(' ID ')' SEMI {$$= createReadNode($3);};
 
@@ -57,8 +62,14 @@ AsgStmt: ID '=' Expr SEMI {
 							};
 
 IfStmt: IF '(' Expr ')' THEN Slist ELSE Slist ENDIF SEMI{
-								$$ = createIfNode($3,$6,$8);
+							$$ = createIfNode($3,$6,$8);
 						}
+		| IF '(' Expr ')' THEN Slist ENDIF SEMI{
+							$$ = createIfNode($3,$6,NULL);
+						}
+WhileStmt: WHILE '(' Expr ')' DO Slist ENDWHILE SEMI{
+							$$ = createWhileNode($3,$6);
+							}
 
 Expr : Expr "+" Expr	{
 							$$ = createOpNode(tADD,$1,$3);

@@ -15,11 +15,13 @@
 #define tEQ 14
 #define tNE 15
 #define tIF 16
-#define intType 17
-#define boolType 18
+#define tWHILE 17
+#define intType 18
+#define boolType 19
 #define varLoc 4096
 
 int reg;
+int label;
 int memory[26];
 
 typedef struct tnode { 
@@ -39,5 +41,6 @@ struct tnode* createAsgNode(struct tnode *l, struct tnode *r);
 struct tnode* createReadNode(struct tnode *r);
 struct tnode* createWriteNode(struct tnode *r);
 struct tnode* createIfNode(struct tnode *l, struct tnode *m, struct tnode *r);
+struct tnode* createWhileNode(struct tnode *l, struct tnode *r);
 
 void printTree(struct tnode* t);
