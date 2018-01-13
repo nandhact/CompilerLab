@@ -46,8 +46,14 @@ do {
 endwhile {
 	return ENDWHILE;
 	}
-	
 
+break {
+	return BREAK;
+}
+
+continue {
+	return CONTINUE;
+}
 "<"	return LT;
 ">"	return GT;
 "<="	return LE;

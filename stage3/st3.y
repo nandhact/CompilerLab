@@ -1,6 +1,7 @@
 %{
 	#include<stdio.h>
 	#include<stdlib.h>
+	#include <limits.h>
 	#include"st3.h"
 	#include"st3.c"
 	#define YYSTYPE tnode*
@@ -9,7 +10,7 @@
 %}
 
 
-%token BEG END READ WRITE NUM SEMI ID IF THEN ELSE ENDIF WHILE DO ENDWHILE
+%token BEG END READ WRITE NUM SEMI ID IF THEN ELSE ENDIF WHILE DO ENDWHILE BREAK CONTINUE
 %token LT "<"
 %token GT ">"
 %token LE "<="
@@ -50,7 +51,8 @@ Stmt : InputStmt {$$=$1;}
 		| OutputStmt{$$=$1;}
 		| AsgStmt {$$=$1;}
 		|IfStmt {$$=$1;}
-		|WhileStmt{$$=$1;};
+		|WhileStmt{$$=$1;}
+		|BrkContStmt;
 
 InputStmt: READ '(' ID ')' SEMI {$$= createReadNode($3);};
 
@@ -66,10 +68,17 @@ IfStmt: IF '(' Expr ')' THEN Slist ELSE Slist ENDIF SEMI{
 						}
 		| IF '(' Expr ')' THEN Slist ENDIF SEMI{
 							$$ = createIfNode($3,$6,NULL);
-						}
+						};
+						
 WhileStmt: WHILE '(' Expr ')' DO Slist ENDWHILE SEMI{
 							$$ = createWhileNode($3,$6);
-							}
+							};
+
+BrkContStmt: BREAK SEMI{ $$=createBreakNode();
+					}
+			| CONTINUE SEMI{
+					$$=createContinueNode();
+					};
 
 Expr : Expr "+" Expr	{
 							$$ = createOpNode(tADD,$1,$3);

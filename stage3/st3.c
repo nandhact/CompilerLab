@@ -53,6 +53,7 @@ struct tnode* createAsgNode(struct tnode *l, struct tnode *r){
 struct tnode* createReadNode(struct tnode *r){
 	return createTree(NULL, NULL ,NULL, tREAD, NULL, NULL, r);
 }
+
 struct tnode* createWriteNode(struct tnode *r){
 	if((r->type) == intType){
 		return createTree(NULL,NULL, NULL, tWRITE, NULL, NULL, r);
@@ -79,7 +80,12 @@ struct tnode* createWhileNode(struct tnode *l, struct tnode *r){
 		exit(1);
 		}
 }
-
+struct tnode* createBreakNode(){
+	return createTree(NULL, NULL ,NULL, tBREAK, NULL, NULL, NULL);
+}
+struct tnode* createContinueNode(){
+	return createTree(NULL, NULL ,NULL, tCONTINUE, NULL, NULL, NULL);
+}
 int getLabel(){
 	return label++;
 }
@@ -104,89 +110,6 @@ void freeReg(){
 
 void freeAllReg(){
 	reg=0;
-}
-
-int eval(struct tnode *t){
-	
-	int loc, reg,p,q;
-	switch((t->nodetype)){
-		case tNUM:
-				return t->val;
-		case tVAR:
-				loc = t->varname-'a';
-				return memory[loc];
-		case tREAD:
-				loc = t->right->varname-'a';
-				//read into location
-				printf("input:",reg);
-				scanf("%d",&reg);
-				memory[loc] = reg;
-				return -1;
-		case tWRITE:
-				printf("%d\n",eval(t->right));
-				return -1;
-		case tCONNECT:
-				eval(t->left);
-				eval(t->right);
-				return -1;
-		case tASSIGN:
-				reg = eval(t->right);
-				loc = t->left->varname-'a';
-				memory[loc] = reg;
-				return -1;
-		case tIF:
-				p=eval(t->left);
-				if(p){
-				return eval(t->middle);
-				} else {
-				return eval(t->right);
-				}
-		case tWHILE:
-				p=eval(t->left);
-				while(p==1){
-					eval(t->right);
-					p = eval(t->left);
-				}
-				return -1;
-				break;
-		default:
-			p = eval(t->left);
-			q = eval(t->right);
-			switch (t->nodetype){
-				case tADD:
-					p=p+q;
-					break;
-				case tSUB:
-					p=p-q;
-					break;
-				case tMUL:
-					p=p*q;
-					break;
-				case tDIV:
-					p=p/q;
-					break;
-				case tLT:
-					p=(p<q);
-					break;
-				case tGT:
-					p=(p>q);
-					break;
-				case tLE:
-					p=(p<=q);
-					break;
-				case tGE:
-					p=(p>=q);
-					break;
-				case tEQ:
-					p=(p==q);
-					break;
-				case tNE:
-					p=(p!=q);
-					break;
-			}
-			return p;
-		}
-
 }
 
 int codeGen(struct tnode* t,FILE *fp){
@@ -244,14 +167,24 @@ int codeGen(struct tnode* t,FILE *fp){
 			fprintf (fp, "L%d:\n", label_1); // Place the first label here.
 			p=codeGen(t->left,fp);
 			fprintf (fp, "JZ R%d, L%d\n", p, label_2);//if zero, jump to label_2 // loop exit
+			push(&breakstack,label_2);
+			push(&contstack,label_1);
 			codeGen(t->right,fp);
 			fprintf(fp, "JMP L%d\n", label_1); // return to the beginning of the loop.
-			fprintf(fp, "L%d:\n", label_2); // Place the second label here
+			fprintf(fp, "L%d:\n", label_2); 	// Place the second label here
 			return -1;
 			}
+		case tBREAK:{
+			fprintf(fp, "JMP L%d\n", pop(&breakstack));
+			return -1;
+		}
+		case tCONTINUE:{
+			fprintf(fp, "JMP L%d\n", pop(&contstack));
+			return -1;
+		}
 		default:
 			reg = codeGen(t->left, fp);
-			loc = codeGen(t->right, fp);	//can free thiss
+			loc = codeGen(t->right, fp);	//can free this
 			switch (t->nodetype){
 				case tADD:
 					fprintf(fp,"ADD R%d, R%d\n",reg,loc);
@@ -308,46 +241,45 @@ void writeCodeGen(int reg, FILE *fp){
 	freeReg();
 }
 
-void printTree(struct tnode* t){
-	if(t->nodetype == tNUM){
-		printf("%d ",t->val);
-	}else if(t->nodetype == tVAR){
-		
-		printf("var %c ",t->varname);
-	}else if(t->nodetype == tCONNECT){
-		printTree(t->left);
-		printf(";\n");
-		printTree(t->right);
-	}else if(t->nodetype == tREAD){
-		printf("READ ");
-		printTree(t->right);
-	}else if(t->nodetype == tWRITE){
-		printf("WRITE ");
-		printTree(t->right);
-	}else if(t->nodetype == tASSIGN){
-		printTree(t->left);
-		printf("= ");
-		printTree(t->right);
-	}else if(t->nodetype == tWHILE){
-		printf("while is true\n");
-		printTree(t->left);
-		printf("do this");
-		printTree(t->right);
-	}else{
-	printTree(t->left);
-	switch(t->nodetype){
-		case tADD: printf("+ ");
-					break;
-		case tSUB: printf("- ");
-					break;
-		case tMUL: printf("* ");
-					break;
-		case tDIV: printf("/ ");
-					break;
-		case tEQ: printf("== ");
-					break;
-		}
-	printTree(t->right);
-	}
+ 
+struct StackNode* newNode(int data)
+{
+    struct StackNode* stackNode =
+              (struct StackNode*) malloc(sizeof(struct StackNode));
+    stackNode->data = data;
+    stackNode->next = NULL;
+    return stackNode;
+}
+ 
+int isEmpty(struct StackNode *root)
+{
+    return !root;
+}
+ 
+void push(struct StackNode** root, int data)
+{
+    struct StackNode* stackNode = newNode(data);
+    stackNode->next = *root;
+    *root = stackNode;
+    printf("%d pushed to stack\n", data);
+}
+ 
+int pop(struct StackNode** root)
+{
+    if (isEmpty(*root))
+        return INT_MIN;
+    struct StackNode* temp = *root;
+    *root = (*root)->next;
+    int popped = temp->data;
+    free(temp);
+ 
+    return popped;
+}
+ 
+int peek(struct StackNode* root)
+{
+    if (isEmpty(root))
+        return INT_MIN;
+    return root->data;
 }
 

@@ -16,14 +16,24 @@
 #define tNE 15
 #define tIF 16
 #define tWHILE 17
-#define intType 18
-#define boolType 19
+#define tBREAK 18
+#define tCONTINUE 19
+#define intType 20
+#define boolType 21
 #define varLoc 4096
 
 int reg;
 int label;
 int memory[26];
-
+struct StackNode* breakstack;
+struct StackNode* contstack;
+ 
+// A structure to represent a stack
+struct StackNode
+{
+    int data;
+    struct StackNode* next;
+};
 typedef struct tnode { 
 	int val;	// value of a number for NUM nodes.
 	int type;	//type of variable
@@ -42,5 +52,6 @@ struct tnode* createReadNode(struct tnode *r);
 struct tnode* createWriteNode(struct tnode *r);
 struct tnode* createIfNode(struct tnode *l, struct tnode *m, struct tnode *r);
 struct tnode* createWhileNode(struct tnode *l, struct tnode *r);
-
+struct tnode* createBreakNode();
+struct tnode* createContinueNode();
 void printTree(struct tnode* t);
