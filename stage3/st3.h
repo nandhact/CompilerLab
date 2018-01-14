@@ -18,8 +18,10 @@
 #define tWHILE 17
 #define tBREAK 18
 #define tCONTINUE 19
-#define intType 20
-#define boolType 21
+#define tDOWHILE 20
+#define intType 21
+#define boolType 22
+#define tREPEAT 23
 #define varLoc 4096
 
 int reg;
@@ -54,4 +56,6 @@ struct tnode* createIfNode(struct tnode *l, struct tnode *m, struct tnode *r);
 struct tnode* createWhileNode(struct tnode *l, struct tnode *r);
 struct tnode* createBreakNode();
 struct tnode* createContinueNode();
+struct tnode* createDoWhileNode(struct tnode *l, struct tnode *r);
+struct tnode* createRepeatNode(struct tnode *l, struct tnode *r);
 void printTree(struct tnode* t);

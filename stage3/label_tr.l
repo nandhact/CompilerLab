@@ -17,13 +17,11 @@
 %%
 
 (.)*:[\n] {
-			
 			if(pass==1){
 				char t;
 				t = yytext[1];
 				insert(t-'0',currLine);
-			} else {
-				}
+			}
 			}
 
 
@@ -39,9 +37,7 @@
 						tempS[i] = yytext[i];
 					}
 					tempS[i]='\0';
-					
 					labelNo = yytext[i+1] - '0';
-					display();
 					fprintf(fout,"%s%d\n",tempS,search(labelNo));
 				}
 				incLine();
@@ -89,7 +85,6 @@ void fstrcpy(FILE *fp, char* s){
 
 int main(int argc, char* argv[])
 {	char c;
-		printf("hi\n");
 	if(argc > 2){
 		ftemp =fopen("temp", "w");
 		yyin = fopen(argv[1], "r");

@@ -37,7 +37,7 @@ void insert(int label,int address) {
       ++hashIndex;
 		
       //wrap around the table
-      hashIndex %= SIZE;
+		hashIndex %= SIZE;
    }
 	
    hashArray[hashIndex] = item;

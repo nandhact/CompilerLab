@@ -54,6 +54,14 @@ break {
 continue {
 	return CONTINUE;
 }
+repeat {
+	return REPEAT;
+}
+
+until {
+	return UNTIL;
+}
+
 "<"	return LT;
 ">"	return GT;
 "<="	return LE;

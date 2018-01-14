@@ -80,12 +80,31 @@ struct tnode* createWhileNode(struct tnode *l, struct tnode *r){
 		exit(1);
 		}
 }
+
+struct tnode* createDoWhileNode(struct tnode *l, struct tnode *r){
+	if((r->type) == boolType){
+		return createTree(NULL,NULL, NULL,tDOWHILE, l, NULL,r);
+	}else{
+		yyerror("Type mismatch - guard of do while must be a conditional\n");
+		exit(1);
+		}
+}
+
+struct tnode* createRepeatNode(struct tnode *l, struct tnode *r){
+	if((r->type) == boolType){
+		return createTree(NULL,NULL, NULL,tREPEAT, l, NULL,r);
+	}else{
+		yyerror("Type mismatch - guard of do while must be a conditional\n");
+		exit(1);
+		}
+}
 struct tnode* createBreakNode(){
 	return createTree(NULL, NULL ,NULL, tBREAK, NULL, NULL, NULL);
 }
 struct tnode* createContinueNode(){
 	return createTree(NULL, NULL ,NULL, tCONTINUE, NULL, NULL, NULL);
 }
+
 int getLabel(){
 	return label++;
 }
@@ -182,6 +201,36 @@ int codeGen(struct tnode* t,FILE *fp){
 			fprintf(fp, "JMP L%d\n", pop(&contstack));
 			return -1;
 		}
+		case tDOWHILE:{
+			int label_1 = getLabel();
+			int label_2 = getLabel();
+			int label_3 = getLabel();
+			fprintf (fp, "L%d:\n", label_1); // Place the first label here.
+			push(&breakstack,label_2);
+			push(&contstack,label_3);
+			codeGen(t->left,fp);
+			fprintf(fp, "L%d:\n", label_3); //continue causes evalutions
+			p=codeGen(t->right,fp);
+			fprintf (fp, "JZ R%d, L%d\n", p, label_2);//if zero, jump to label_2 // loop exit
+			fprintf(fp, "JMP L%d\n", label_1); // return to the beginning of the loop.
+			fprintf(fp, "L%d:\n", label_2); 	// Place the second label here
+			return -1;
+		}
+		case tREPEAT:{
+			int label_1 = getLabel();
+			int label_2 = getLabel();
+			int label_3 = getLabel();
+			fprintf (fp, "L%d:\n", label_1); // Place the first label here.
+			push(&breakstack,label_2);
+			push(&contstack,label_3);
+			codeGen(t->left,fp);
+			fprintf(fp, "L%d:\n", label_3); //continue causes evalutions
+			p=codeGen(t->right,fp);
+			fprintf (fp, "JNZ R%d, L%d\n", p, label_2);//if true, not zero, jump to label_2 // loop exit
+			fprintf(fp, "JMP L%d\n", label_1); // return to the beginning of the loop.
+			fprintf(fp, "L%d:\n", label_2); 	// Place the second label here
+			return -1;
+		}
 		default:
 			reg = codeGen(t->left, fp);
 			loc = codeGen(t->right, fp);	//can free this
@@ -261,7 +310,7 @@ void push(struct StackNode** root, int data)
     struct StackNode* stackNode = newNode(data);
     stackNode->next = *root;
     *root = stackNode;
-    printf("%d pushed to stack\n", data);
+    //printf("%d pushed to stack\n", data);
 }
  
 int pop(struct StackNode** root)

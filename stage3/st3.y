@@ -10,7 +10,7 @@
 %}
 
 
-%token BEG END READ WRITE NUM SEMI ID IF THEN ELSE ENDIF WHILE DO ENDWHILE BREAK CONTINUE
+%token BEG END READ WRITE NUM SEMI ID IF THEN ELSE ENDIF WHILE DO ENDWHILE BREAK CONTINUE REPEAT UNTIL
 %token LT "<"
 %token GT ">"
 %token LE "<="
@@ -41,45 +41,50 @@ prog : BEG Slist END SEMI {
 	 	exit(1);
 		};
 	 	
-Slist : Slist Stmt {
+Slist : Slist Stmt SEMI{
 		$$ = createTree(NULL,NULL, NULL,tCONNECT, $1,NULL, $2);
 	}
-	| Stmt {
+	| Stmt SEMI{
 		$$=$1;
 	};
-Stmt : InputStmt {$$=$1;}
-		| OutputStmt{$$=$1;}
-		| AsgStmt {$$=$1;}
-		|IfStmt {$$=$1;}
-		|WhileStmt{$$=$1;}
-		|BrkContStmt;
+Stmt : InputStmt	//defaults to $$=$1
+		| OutputStmt
+		| AsgStmt 
+		|IfStmt 
+		|WhileStmt
+		|BrkContStmt
+		|DoWhileStmt
+		|RepeatStmt;
 
-InputStmt: READ '(' ID ')' SEMI {$$= createReadNode($3);};
+InputStmt: READ '(' ID ')'		{$$= createReadNode($3);};
 
-OutputStmt: WRITE '(' Expr ')' SEMI {$$= createWriteNode($3);};
+OutputStmt: WRITE '(' Expr ')'	{$$= createWriteNode($3);};
 
 
-AsgStmt: ID '=' Expr SEMI {	
-							$$ = createAsgNode($1, $3);
-							};
+AsgStmt: ID '=' Expr			{$$ = createAsgNode($1, $3);};
 
-IfStmt: IF '(' Expr ')' THEN Slist ELSE Slist ENDIF SEMI{
+IfStmt: IF '(' Expr ')' THEN Slist ELSE Slist ENDIF {
 							$$ = createIfNode($3,$6,$8);
 						}
-		| IF '(' Expr ')' THEN Slist ENDIF SEMI{
+		| IF '(' Expr ')' THEN Slist ENDIF {
 							$$ = createIfNode($3,$6,NULL);
 						};
 						
-WhileStmt: WHILE '(' Expr ')' DO Slist ENDWHILE SEMI{
+WhileStmt: WHILE '(' Expr ')' DO Slist ENDWHILE {
 							$$ = createWhileNode($3,$6);
 							};
 
-BrkContStmt: BREAK SEMI{ $$=createBreakNode();
+BrkContStmt: BREAK { $$=createBreakNode();
 					}
-			| CONTINUE SEMI{
+			| CONTINUE {
 					$$=createContinueNode();
 					};
-
+DoWhileStmt: DO Slist WHILE '(' Expr ')' {
+								$$ = createDoWhileNode($2,$5);
+								};
+RepeatStmt: REPEAT Slist UNTIL '(' Expr ')' {
+								$$ = createRepeatNode($2,$5);
+								};
 Expr : Expr "+" Expr	{
 							$$ = createOpNode(tADD,$1,$3);
 						}
