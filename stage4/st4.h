@@ -27,11 +27,15 @@
 #define tDCONNECT 25
 #define tDECL 26
 #define tVCONNECT 27
+#define tLIT 28
+#define tARR 29
+#define tDARR 30
 
 typedef struct Gsymbol {
 	char* name;	// name of the variable
 	int type;	// type of the variable
-	int size;	// size of the type of the variable
+	int nodetype;
+	int size[2];	// size of the type of the variable
 	int binding;	// stores the static memory address allocated to the variable
 	struct Gsymbol *next;
 }	Gsymbol;
@@ -46,8 +50,7 @@ int heapSize = 4096;
 char * typeToString(int type);
 
 struct Gsymbol *lookup(char * name); // Returns a pointer to the symbol table entry for the variable, returns NULL otherwise.
-void install(char *name, int type, int size, int binding); // Creates a symbol table entry.
-
+void insertSymbol(char *name, int type,int nodetype, int size0,int size1, int binding);
 
 // A structure to represent a stack
 struct StackNode
@@ -65,10 +68,11 @@ typedef struct tnode {
 }tnode;
 
 /*Create a node tnode*/
-struct tnode* createTree(int val,int type, char* c, int nodetype, struct tnode *l,struct tnode *m, struct tnode *r);
+struct tnode* createTree(int val,int type, char* c, int nodetype, struct Gsymbol * st, struct tnode *l,struct tnode *m, struct tnode *r);
 struct tnode* createNumNode(int val);
 struct tnode* createOpNode(int nodetype, struct tnode *l, struct tnode *r);
 struct tnode* createVarNode(char* c);
+struct tnode* createLiteralNode(char* c);
 struct tnode* createAsgNode(struct tnode *l, struct tnode *r);
 struct tnode* createReadNode(struct tnode *r);
 struct tnode* createWriteNode(struct tnode *r);
