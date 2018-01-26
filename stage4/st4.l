@@ -75,7 +75,7 @@ int {
 	return INT;
 }
 
-string {
+str {
 	return STR;
 }
 "<"	return LT;
@@ -93,6 +93,15 @@ string {
 		char * temp = strdup(yytext);
 		yylval = createVarNode(temp);
 		return ID;}
+		
+"[" {return *yytext;}
+"]" {return *yytext;}
+
+[\"].*[\"] {
+		char * temp = strdup(yytext);
+		yylval = createLiteralNode(temp);
+		return LIT;
+	}
 
 [0-9]+ { val = atoi(yytext);
 		yylval = createNumNode(val);

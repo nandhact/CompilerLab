@@ -1,9 +1,10 @@
-struct tnode* createTree(int val,int type, char* c, int nodetype, struct tnode *l,struct tnode *m, struct tnode *r){
+struct tnode* createTree(int val,int type, char* c, int nodetype, struct Gsymbol * st, struct tnode *l,struct tnode *m, struct tnode *r){
 	struct tnode* t = (struct tnode*)malloc(sizeof(struct tnode));
 	t->val = val;
 	t->type = type;
 	t->varname = c;
 	t->nodetype= nodetype;
+	t->Gentry=st;
 	t->left = l;
 	t->middle = m;
 	t->right = r;
@@ -11,11 +12,14 @@ struct tnode* createTree(int val,int type, char* c, int nodetype, struct tnode *
 }
 
 
-void insertSymbol(char *name, int type, int size, int binding){
+void insertSymbol(char *name, int type,int nodetype, int size0,int size1, int binding){
 	 Gsymbol* symEntry =
               (Gsymbol*) malloc(sizeof(Gsymbol));
     symEntry->name = strdup(name);
-    symEntry->type = type;
+    symEntry->type = type; 	//str or int
+    symEntry->nodetype = nodetype;
+    symEntry->size[0]=size0;
+    symEntry->size[1]=size1;
     symEntry->binding = binding;
     symEntry->next = symtable;
     symtable = symEntry;
@@ -38,16 +42,16 @@ void showST(){
 	printf("------------Symbol Table-------------------\n");
     while (current != NULL)
     {
-        printf("Name:%s\t Type:%s\t Binding:%d\n",current->name, typeToString(current->type), current->binding);
+        printf("Name:%s Size:%d,%d Type:%s ,Nodetype: %d,Binding:%d\n",current->name,current->size[0],current->size[1] ,typeToString(current->type), (current->nodetype), current->binding);
         current = current->next;
     }
 }
 
 char * typeToString(int type){
 	switch(type){
-		case 21: return "Integer";
+		case intType: return "Integer";
 			break;
-		case 23: return "String";
+		case stringType: return "String";
 			break;
 		default: return "Void";
 			break;
@@ -56,11 +60,17 @@ char * typeToString(int type){
 }
 
 struct tnode* createVarNode(char* c){
-	return createTree(NULL,intType, c, tVAR, NULL, NULL,NULL);
+		return createTree(NULL,NULL, c, tVAR, NULL,NULL, NULL ,NULL);
+		
+}
+
+struct tnode* createLiteralNode(char* c){
+		return createTree(NULL,stringType, c, tLIT, NULL,NULL, NULL ,NULL);
+		
 }
 
 struct tnode * createTypeNode(int type){
-	return createTree(NULL,type, NULL,NULL, NULL,NULL,NULL);
+	return createTree(NULL,type, NULL,NULL,NULL,NULL,NULL,NULL);
 }
 
 struct tnode * assignTypeDecl(struct tnode *typeNode, struct tnode *varlist){
@@ -80,7 +90,7 @@ struct tnode * assignTypeDecl(struct tnode *typeNode, struct tnode *varlist){
 
 
 struct tnode* createNumNode(int val){
-	return createTree(val,intType, NULL,tNUM, NULL,NULL,NULL);
+	return createTree(val,intType, NULL,tNUM, NULL,NULL,NULL,NULL);
 }
 
 struct tnode* createOpNode(int nodetype, struct tnode *l, struct tnode *r){
@@ -90,7 +100,7 @@ struct tnode* createOpNode(int nodetype, struct tnode *l, struct tnode *r){
 			case tSUB:
 			case tMUL:
 			case tDIV:
-					return createTree(NULL, intType, NULL,nodetype, l, NULL, r);
+					return createTree(NULL, intType, NULL,nodetype,NULL, l, NULL, r);
 					break;
 			case tLT:
 			case tGT:
@@ -98,7 +108,7 @@ struct tnode* createOpNode(int nodetype, struct tnode *l, struct tnode *r){
 			case tGE:
 			case tEQ:
 			case tNE:
-					return createTree(NULL, boolType, NULL,nodetype, l, NULL, r);
+					return createTree(NULL, boolType, NULL,nodetype,NULL, l, NULL, r);
 					break;
 			}
 		}
@@ -110,29 +120,31 @@ struct tnode* createOpNode(int nodetype, struct tnode *l, struct tnode *r){
 
 
 struct tnode* createAsgNode(struct tnode *l, struct tnode *r){
-	if((r->type) == intType){
-		return createTree(NULL,NULL, NULL,tASSIGN, l, NULL,r);
+	//printf("type r, l, nodetype:\n%d %d %d\n",(r->type),(l->type),(l->nodetype));
+	if(((r->type) == (l->type)) && ((l->nodetype==tVAR)||(l->nodetype==tARR)||(l->nodetype==tDARR))){
+		return createTree(NULL,NULL, NULL,tASSIGN,NULL, l, NULL,r);
 	}else{
-		yyerror("Type mismatch - cannot assign boolean values \n");
+		yyerror("Type mismatch - cannot assign \n");
 		exit(1);
 		}
 }
+
 struct tnode* createReadNode(struct tnode *r){
-	return createTree(NULL, NULL ,NULL, tREAD, NULL, NULL, r);
+	return createTree(NULL, NULL ,NULL, tREAD,NULL, NULL, NULL, r);
 }
 
 struct tnode* createWriteNode(struct tnode *r){
-	if((r->type) == intType){
-		return createTree(NULL,NULL, NULL, tWRITE, NULL, NULL, r);
-	}else{
-		yyerror("Type mismatch- can't print boolean expressions\n");
+	if(((r->type) == intType) || ((r->type) == stringType)){
+		return createTree(NULL,NULL, NULL, tWRITE,NULL, NULL, NULL, r);
+	}else {
+		yyerror("Type mismatch- can't write\n");
 		exit(1);
 		}
 }
 
 struct tnode* createIfNode(struct tnode *l, struct tnode *m, struct tnode *r){
 	if((l->type) == boolType)
-		return createTree(NULL,NULL, NULL, tIF, l, m, r);
+		return createTree(NULL,NULL, NULL, tIF,NULL, l, m, r);
 	else{
 		yyerror("Type mismatch - guard of if must be a conditional\n");
 		exit(1);
@@ -141,7 +153,7 @@ struct tnode* createIfNode(struct tnode *l, struct tnode *m, struct tnode *r){
 
 struct tnode* createWhileNode(struct tnode *l, struct tnode *r){
 	if((l->type) == boolType){
-		return createTree(NULL,NULL, NULL,tWHILE, l, NULL,r);
+		return createTree(NULL,NULL, NULL,tWHILE,NULL, l, NULL,r);
 	}else{
 		yyerror("Type mismatch - guard of while must be a conditional\n");
 		exit(1);
@@ -150,7 +162,7 @@ struct tnode* createWhileNode(struct tnode *l, struct tnode *r){
 
 struct tnode* createDoWhileNode(struct tnode *l, struct tnode *r){
 	if((r->type) == boolType){
-		return createTree(NULL,NULL, NULL,tDOWHILE, l, NULL,r);
+		return createTree(NULL,NULL, NULL,tDOWHILE,NULL, l, NULL,r);
 	}else{
 		yyerror("Type mismatch - guard of do while must be a conditional\n");
 		exit(1);
@@ -159,17 +171,17 @@ struct tnode* createDoWhileNode(struct tnode *l, struct tnode *r){
 
 struct tnode* createRepeatNode(struct tnode *l, struct tnode *r){
 	if((r->type) == boolType){
-		return createTree(NULL,NULL, NULL,tREPEAT, l, NULL,r);
+		return createTree(NULL,NULL, NULL,tREPEAT,NULL, l, NULL,r);
 	}else{
 		yyerror("Type mismatch - guard of do while must be a conditional\n");
 		exit(1);
 		}
 }
 struct tnode* createBreakNode(){
-	return createTree(NULL, NULL ,NULL, tBREAK, NULL, NULL, NULL);
+	return createTree(NULL, NULL ,NULL, tBREAK,NULL, NULL, NULL, NULL);
 }
 struct tnode* createContinueNode(){
-	return createTree(NULL, NULL ,NULL, tCONTINUE, NULL, NULL, NULL);
+	return createTree(NULL, NULL ,NULL, tCONTINUE,NULL, NULL, NULL, NULL);
 }
 
 int getLabel(){
@@ -206,6 +218,10 @@ int getHeapSpace(int size){
 int codeGen(struct tnode* t,FILE *fp){
 	int loc, reg,p,q;
 	switch((t->nodetype)){
+		case tLIT:
+				reg = getReg();
+				fprintf(fp,"MOV R%d, %s\n", reg, t->varname);
+				return reg;
 		case tNUM:
 				reg = getReg();
 				fprintf(fp,"MOV R%d, %d\n", reg, t->val);
@@ -215,6 +231,28 @@ int codeGen(struct tnode* t,FILE *fp){
 				loc = t->Gentry->binding;
 				fprintf(fp,"MOV R%d, [%d]\n", reg, loc);
 				return reg;
+		case tARR:{
+				int offsetReg = codeGen(t->middle,fp);
+				reg = getReg();
+				loc = t->Gentry->binding;
+				fprintf(fp,"ADD R%d, %d\n",offsetReg,loc);
+				fprintf(fp,"MOV R%d, [R%d]\n", reg, offsetReg);
+				return reg;
+				}
+		case tDARR:{
+					int offsetReg = codeGen(t->middle,fp);
+					reg = getReg();
+					loc = t->Gentry->binding;
+					int  offsetCol = codeGen(t->right,fp);
+					//mul size[0] with row, add col
+					fprintf(fp,"MUL R%d, %d\n",offsetReg, t->Gentry->size[0]);
+					//now add offsetCol to offsetReg
+					fprintf(fp,"ADD R%d, R%d\n", offsetReg, offsetCol);
+					
+					fprintf(fp,"ADD R%d, %d\n",offsetReg,loc);
+					fprintf(fp,"MOV R%d, [R%d]\n", reg, offsetReg);
+					return reg;
+					}
 		case tREAD:
 				loc =  t->right->Gentry->binding;
 				//read into location
@@ -231,9 +269,33 @@ int codeGen(struct tnode* t,FILE *fp){
 				freeAllReg();
 				return -1;
 		case tASSIGN:
-				reg = codeGen(t->right,fp);
-				loc =  t->left->Gentry->binding;
-				fprintf(fp,"MOV \[%d\], R%d\n",loc,reg);
+				if(t->left->nodetype==tVAR){
+					reg = codeGen(t->right,fp);
+					loc =  t->left->Gentry->binding;
+					fprintf(fp,"MOV [%d], R%d\n",loc,reg);
+				}
+				else if(t->left->nodetype==tARR){
+					int offsetReg = codeGen(t->left->middle,fp);
+					reg = codeGen(t->right,fp);
+					loc = t->left->Gentry->binding;
+					fprintf(fp,"ADD R%d, %d\n",offsetReg,loc);
+					fprintf(fp,"MOV [R%d], R%d\n", offsetReg,reg);
+					return reg;
+					}
+				else if(t->left->nodetype==tDARR){
+					int offsetReg = codeGen(t->left->middle,fp);
+					int  offsetCol = codeGen(t->left->right,fp);
+					reg = codeGen(t->right,fp);
+					loc = t->left->Gentry->binding;
+					fprintf(fp,"MUL R%d, %d\n",offsetReg, t->left->Gentry->size[0]);
+					//now add offsetCol to offsetReg
+					fprintf(fp,"ADD R%d, R%d\n", offsetReg, offsetCol);
+					
+					fprintf(fp,"ADD R%d, %d\n",offsetReg,loc);
+					fprintf(fp,"MOV [R%d], R%d\n", offsetReg, reg);
+					return reg;
+					}
+				
 				return -1;
 		case tIF:{
 			int label_1 = getLabel();
@@ -348,7 +410,13 @@ int codeGen(struct tnode* t,FILE *fp){
 
 void readCodeGen(int location, FILE *fp){
 	int temp = getReg();
-	fprintf(fp,"MOV R%d, \"Read\"\nPUSH R%d\nMOV R%d, -1\nPUSH R%d\nMOV R%d, %d\nPUSH R%d\nPUSH R0\nPUSH R0\nCALL 0\nPOP R%d\nPOP R%d\nPOP R%d\nPOP R%d\nPOP R%d\n",temp,temp,temp,temp,temp,location,temp,temp,temp,temp,temp,temp);
+	fprintf(fp,"MOV R%d, \"Read\"\n",temp);
+	fprintf(fp,"PUSH R%d\n",temp);
+	fprintf(fp,"MOV R%d, -1\n",temp);
+	fprintf(fp,"PUSH R%d\n",temp);
+	fprintf(fp,"MOV R%d, %d\n",temp,location);
+	fprintf(fp,"PUSH R%d\n",temp);
+	fprintf(fp,"PUSH R0\nPUSH R0\nCALL 0\nPOP R%d\nPOP R%d\nPOP R%d\nPOP R%d\nPOP R%d\n",temp,temp,temp,temp,temp);
 	//return val - success/fail in Rtemp?
 	freeReg();
 }
