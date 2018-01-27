@@ -28,12 +28,18 @@ int getHeapSpace(int size){
 	return heapSize-size;
 }
 
-int getLoc(struct tnode* t,FILE *fp){
+int getLocReg(struct tnode* t,FILE *fp){
 	
 	int loc = t->Gentry->binding;
 	
 	if(t->Gentry!=NULL){
 		switch(t->nodetype){
+		case tREF:{
+			int reg = getReg();
+			fprintf(fp,"MOV R%d, %d\n",reg,loc);
+			return reg;
+		}
+		case tPVAR:
 		case tVAR:{ 
 				int reg = getReg();
 				fprintf(fp,"MOV R%d, %d\n",reg,loc);
@@ -56,7 +62,7 @@ int getLoc(struct tnode* t,FILE *fp){
 					fprintf(fp,"ADD R%d, %d\n",offsetReg,loc);
 					return offsetReg;
 		}
-		default: printf("getLoc failed\n");	
+		default: printf("getLoc failed %d\n",t->nodetype);	
 		}
 	} else {
 		printf("No binding in ST\n");
@@ -74,18 +80,32 @@ int codeGen(struct tnode* t,FILE *fp){
 				reg = getReg();
 				fprintf(fp,"MOV R%d, %d\n", reg, t->val);
 				return reg;
-		case tVAR:
+		case tVAR://gets the value in a reg
+		case tPVAR:
 		case tARR:
 		case tDARR:
 				reg = getReg();
-				loc = getLoc(t,fp);
+				loc = getLocReg(t,fp);
 				fprintf(fp,"MOV R%d, [R%d]\n", reg, loc);
 				return reg;
-					
-		case tBRKP: fprintf(fp,"BRKP\n");
-					return -1;
+		
+		case tREF://p=&q;
+				//reg has the location in it
+				loc = getLocReg(t,fp);
+				return loc;
+		case tDEREF://q=*p;
+					//*p=q+1;
+				//value in p is the address who's value we need
+				reg=getReg();
+				t->nodetype=tPVAR;
+				loc = codeGen(t,fp);
+				fprintf(fp,"MOV R%d, [R%d]\n",reg,loc);
+				return reg;
+		case tBRKP: 
+				fprintf(fp,"BRKP\n");
+				return -1;
 		case tREAD:
-				loc =  getLoc(t->right,fp);
+				loc =  getLocReg(t->right,fp);
 				readCodeGen(loc,fp);
 				return -1;
 		case tWRITE:
@@ -98,9 +118,14 @@ int codeGen(struct tnode* t,FILE *fp){
 				codeGen(t->right,fp);
 				freeAllReg();
 				return -1;
+				
 		case tASSIGN:
 				reg = codeGen(t->right,fp);
-				loc = getLoc(t->left,fp);
+				if(t->left->nodetype==tPVAR && t->left->type!=pIntType && t->left->type!=pStringType){	//*p=...
+					loc = codeGen(t->left,fp);	//now address of q is in loc (in a register)
+				}else {
+					loc = getLocReg(t->left,fp);
+				}
 				fprintf(fp,"MOV [R%d], R%d\n", loc, reg);
 				return -1;
 		case tIF:{

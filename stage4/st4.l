@@ -7,6 +7,8 @@
 %}
 %option noyywrap
 
+single \/\/
+
 %%
 
 begin { 
@@ -82,6 +84,8 @@ breakpoint {
 	return BRKP;
 }
 
+{single}.*[\n] ;
+
 "<"	return LT;
 ">"	return GT;
 "<="	return LE;
@@ -93,7 +97,7 @@ breakpoint {
 "*"	return MUL;
 "/"	return DIV;
 
-[a-z]+ {//printf("%s lexeme\n",yytext);
+[a-zA-Z]+[a-zA-Z0-9]* {//printf("%s lexeme\n",yytext);
 		char * temp = strdup(yytext);
 		yylval = createVarNode(temp);
 		return ID;}

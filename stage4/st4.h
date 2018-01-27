@@ -20,8 +20,8 @@
 #define tCONTINUE 19
 #define tDOWHILE 20
 #define intType 21
-#define boolType 22
-#define stringType 23
+#define stringType 22
+#define boolType 23
 #define tREPEAT 24
 #define heapBase 4096
 #define tDCONNECT 25
@@ -34,7 +34,8 @@
 #define pStringType 32
 #define tPVAR 33
 #define tBRKP 34
-
+#define tREF 35
+#define tDEREF 36
 
 typedef struct Gsymbol {
 	char* name;	// name of the variable
