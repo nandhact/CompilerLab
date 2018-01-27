@@ -34,7 +34,8 @@
 %%
 
 prog : Declarations BEG Slist END SEMI {
-		showST();
+
+	 	showST();
 		fprintf(fout,"%d\n%d\n%d\n%d\n%d\n%d\n%d\n%d\nMOV SP, %d\n",0,2056,0,0,0,0,1,0,heapSize);
 		codeGen($3,fout);
 		fprintf(fout,"INT 10\n");
@@ -61,9 +62,13 @@ Type :	INT					{$$=createTypeNode(intType);}
 		|STR				{$$=createTypeNode(stringType);}
 		;
 
-VarList :VarList COMMA newVar {$3->middle=$1;
-							$$=$3;}
-		|newVar 				{$$=$1;};
+VarList :VarList COMMA newVar {
+								$3->middle=$1;
+								$$=$3; }
+		|newVar 				{
+								$1->middle=NULL;
+								$$=$1;};
+		
 newVar: ID			{
 					if(lookupSymbol($1->varname) == NULL){
 						insertSymbol($1->varname,NULL,tVAR,1,0,getHeapSpace(1));
@@ -74,7 +79,15 @@ newVar: ID			{
 					exit(1);
 				}
 				}
-	
+		|MUL ID { if(lookupSymbol($2->varname) == NULL){
+						insertSymbol($2->varname,NULL,tPVAR,1,0,getHeapSpace(1));
+						$2->nodetype=tPVAR;
+						$$=$2;
+				} else {
+					yyerror("Variable already declared\n");
+					exit(1);
+				}
+		}
 		|ID '[' NUM ']'{
 			if(lookupSymbol($1->varname) == NULL){
 					insertSymbol($1->varname,NULL,tARR,$3->val,0,getHeapSpace($3->val));
@@ -89,16 +102,6 @@ newVar: ID			{
 			if(lookupSymbol($1->varname) == NULL){
 					insertSymbol($1->varname,NULL,tDARR,$3->val,$6->val,getHeapSpace(($3->val)*($5->val)));
 					$1->nodetype=tDARR;
-					$$=$1;
-				} else {
-					yyerror("Variable already declared\n");
-					exit(1);
-				}
-		}
-		|MUL ID {
-				if(lookupSymbol($2->varname) == NULL){
-					insertSymbol($2->varname,NULL,tPVAR,1,0,getHeapSpace(1));
-					$1->nodetype=tPVAR;
 					$$=$1;
 				} else {
 					yyerror("Variable already declared\n");
@@ -153,18 +156,37 @@ AsgStmt: Var '=' Expr {
 Var: ID 			{	if(lookupSymbol($1->varname) != NULL){
 							$1->Gentry = lookupSymbol($1->varname);
 							
-							if(($1->Gentry)->nodetype!=tVAR){
+							if(($1->Gentry)->nodetype!=tPVAR && (($1->Gentry)->nodetype!=tVAR)){
 								yyerror("Type mismatch: Not declared as variable: %s\n",$1->varname);
 								exit(1);
 							}
-							$1->nodetype=tVAR;
+							$1->nodetype=($1->Gentry)->nodetype;
 							$1->type=($1->Gentry)->type;
 						} else {
-							yyerror("Variable undeclared: %s\n",$1->varname);
+							yyerror("Variable undeclared\n");
 							exit(1);
 						}
 						$$ = $1;
 					}
+		| MUL ID {		//*p=*p+1 turns to q=*p+1
+						if(lookupSymbol($2->varname) != NULL){
+							$2->Gentry = lookupSymbol($2->varname);
+							if(($2->Gentry)->nodetype!=tPVAR){
+								yyerror("Type mismatch: Not declared as pointer variable: %s\n",$2->varname);
+								exit(1);
+							}
+							printf("*p type %d %d\n",tPVAR, ($2->Gentry->type)-10);
+							$2->nodetype=tPVAR;			//nodetype says pointer
+							$2->type=($2->Gentry->type)-10;//type says not pointer
+							
+							
+						} else {
+							yyerror("Variable undeclared\n");
+							exit(1);
+						}
+						$$ = $2;
+			
+		}
 		|ID '[' Expr ']' {	if(lookupSymbol($1->varname) != NULL){
 								$1->Gentry = lookupSymbol($1->varname);
 								
@@ -184,7 +206,7 @@ Var: ID 			{	if(lookupSymbol($1->varname) != NULL){
 								}
 								$1->middle=$3;
 							} else {
-								yyerror("Variable undeclared: %s\n",$1->varname);
+								yyerror("Variable undeclared\n");
 								exit(1);
 							}				
 							$$ = $1;
@@ -289,6 +311,45 @@ Expr : Expr "+" Expr	{
 								exit(1);
 							}
 						$$ = $1;}
+	| MUL ID {		
+					if(lookupSymbol($2->varname) != NULL){
+						$2->Gentry = lookupSymbol($2->varname);
+						
+						if($2->Gentry->nodetype==tPVAR){
+							$2->type=($2->Gentry)->type-10;
+							$2->nodetype=tDEREF;
+							$$=$2;
+						} else {
+							yyerror("Type mismatch: Expected Pointer\n");
+							exit(1);
+						}
+					} else {
+						yyerror("Variable undeclared\n");
+						exit(1);
+					}
+					$$ = $2;
+					}
+	| '&' ID {	
+				if(lookupSymbol($2->varname) != NULL){
+						$2->Gentry = lookupSymbol($2->varname);
+						
+						if($2->Gentry->nodetype==tVAR){
+							$2->type=($2->Gentry)->type+10;
+							$2->nodetype=tREF;
+							$$=$2;
+						} else {
+							yyerror("Type mismatch: Expected Variable after &\n");
+							exit(1);
+						}
+					} else {
+						yyerror("Variable undeclared\n");
+						exit(1);
+					}
+					$2->nodetype=tREF;
+					$$ = $2;
+			}
+				
+			
 	|ID  '[' Expr ']' {
 						if(lookupSymbol($1->varname) != NULL){
 								$1->Gentry = lookupSymbol($1->varname);

@@ -17,7 +17,7 @@ void insertSymbol(char *name, int type,int nodetype, int size0,int size1, int bi
 Gsymbol * lookupSymbol(char * name){
     Gsymbol * current = symtable;  // Initialize current
     while (current != NULL)
-    {	
+    {
         if (strcmp(name,current->name)==0){
             return current;}
         current = current->next;
@@ -30,7 +30,7 @@ void showST(){
 	printf("------------Symbol Table-------------------\n");
     while (current != NULL)
     {
-        printf("Name:%s Size:%d,%d Type:%s ,Nodetype: %d,Binding:%d\n",current->name,current->size[0],current->size[1] ,typeToString(current->type), (current->nodetype), current->binding);
+        printf("Name:%s Size:%d,%d Type:%d-%s ,Nodetype: %d,Binding:%d\n",current->name,current->size[0],current->size[1] ,current->type,typeToString(current->type), (current->nodetype), current->binding);
         current = current->next;
     }
 }
@@ -41,6 +41,10 @@ char * typeToString(int type){
 		case intType: return "Integer";
 			break;
 		case stringType: return "String";
+			break;
+		case pStringType: return "String Pointer";
+			break;
+		case pIntType: return "Int Pointer";
 			break;
 		default: return "Void";
 			break;
