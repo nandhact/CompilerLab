@@ -30,6 +30,11 @@
 #define tLIT 28
 #define tARR 29
 #define tDARR 30
+#define pIntType 31
+#define pStringType 32
+#define tPVAR 33
+#define tBRKP 34
+
 
 typedef struct Gsymbol {
 	char* name;	// name of the variable

@@ -1,9 +1,12 @@
 %{
 	#include<stdio.h>
 	#include<stdlib.h>
-	#include <limits.h>
+	#include<limits.h>
 	#include<string.h>
 	#include"st4.h"
+	#include"stack.c"
+	#include"symbol.c"
+	#include"codegen.c"
 	#include"st4.c"
 	#define YYSTYPE tnode*
 	extern FILE *yyin;
@@ -12,7 +15,7 @@
 
 
 %token BEG END READ WRITE NUM SEMI ID IF THEN ELSE ENDIF WHILE DO ENDWHILE BREAK CONTINUE REPEAT UNTIL
-%token DECL ENDDECL INT STR LIT
+%token DECL ENDDECL INT STR LIT BRKP
 %token LT "<"
 %token GT ">"
 %token LE "<="
@@ -43,44 +46,35 @@ prog : Declarations BEG Slist END SEMI {
 	 	printf("Successfully parsed empty program\n");
 	 	exit(1);
 		};
-Declarations : DECL DeclList ENDDECL {$$=$2;}
-			| DECL ENDDECL	{$$=createTree(NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);};
+Declarations : DECL DeclList ENDDECL	{$$=$2;}
+				| DECL ENDDECL			{$$=createTree(NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);}
+			;
 
 DeclList : DeclList Decl	{$$ = createTree(NULL,NULL, NULL,tDCONNECT,NULL, $1,NULL, $2);}
-		| Decl 				{$$=$1;};
+		| Decl 				{$$=$1;}
+		;
 
-Decl : Type VarList SEMI	{
-							$$=assignTypeDecl($1,$2);
-							};
-							
+Decl : Type VarList SEMI	{$$=assignTypeDecl($1,$2);}
+		;
 
 Type :	INT					{$$=createTypeNode(intType);}
-		|STR				{$$=createTypeNode(stringType);};
+		|STR				{$$=createTypeNode(stringType);}
+		;
 
-VarList :VarList COMMA ID {	//Problem: $3 is holding whole string::::Solution: don't pass yytext
-									if(lookupSymbol($3->varname) == NULL){	
-										insertSymbol($3->varname,NULL,tVAR,1,0,getHeapSpace(1));
-										$3->middle=$1;
-										
-								printf("assigning tvar for %s\n",$3->varname);
-										$3->nodetype=tVAR;
-										$$=$3; 
-							} else {
-								yyerror("Variable already declared\n");
-								exit(1);
-							}
-							}
-		| ID {
-				if(lookupSymbol($1->varname) == NULL){
-					printf("assigning tvar for %s\n",$1->varname);
-					insertSymbol($1->varname,NULL,tVAR,1,0,getHeapSpace(1));
-					$1->nodetype=tVAR;
-					$$=$1;
+VarList :VarList COMMA newVar {$3->middle=$1;
+							$$=$3;}
+		|newVar 				{$$=$1;};
+newVar: ID			{
+					if(lookupSymbol($1->varname) == NULL){
+						insertSymbol($1->varname,NULL,tVAR,1,0,getHeapSpace(1));
+						$1->nodetype=tVAR;
+						$$=$1;
 				} else {
 					yyerror("Variable already declared\n");
 					exit(1);
 				}
 				}
+	
 		|ID '[' NUM ']'{
 			if(lookupSymbol($1->varname) == NULL){
 					insertSymbol($1->varname,NULL,tARR,$3->val,0,getHeapSpace($3->val));
@@ -100,7 +94,19 @@ VarList :VarList COMMA ID {	//Problem: $3 is holding whole string::::Solution: d
 					yyerror("Variable already declared\n");
 					exit(1);
 				}
-		};
+		}
+		|MUL ID {
+				if(lookupSymbol($2->varname) == NULL){
+					insertSymbol($2->varname,NULL,tPVAR,1,0,getHeapSpace(1));
+					$1->nodetype=tPVAR;
+					$$=$1;
+				} else {
+					yyerror("Variable already declared\n");
+					exit(1);
+				}
+		}
+		
+		;
 
 Slist : Slist Stmt SEMI{
 		$$ = createTree(NULL,NULL, NULL,tCONNECT,NULL, $1,NULL, $2);
@@ -115,9 +121,14 @@ Stmt : InputStmt	//defaults to $$=$1
 		|WhileStmt
 		|BrkContStmt
 		|DoWhileStmt
+		|Breakpoint
 		|RepeatStmt;
 
-InputStmt: READ '(' Expr ')'		{if($3->nodetype==tVAR ||$3->nodetype==tARR){
+Breakpoint: BRKP {
+	$$ = createTree(NULL,NULL, NULL,tBRKP,NULL, NULL,NULL, NULL);	
+	};
+
+InputStmt: READ '(' Expr ')'		{if($3->nodetype==tVAR ||$3->nodetype==tARR||$3->nodetype==tDARR){
 										if(lookupSymbol($3->varname) != NULL){
 											$3->Gentry = lookupSymbol($3->varname);
 										} else {
@@ -133,81 +144,89 @@ InputStmt: READ '(' Expr ')'		{if($3->nodetype==tVAR ||$3->nodetype==tARR){
 
 OutputStmt: WRITE '(' Expr ')'	{	$$= createWriteNode($3);};
 
+AsgStmt: Var '=' Expr {
+					
+					//checks tht exp and id have same type
+					$$ = createAsgNode($1, $3);
 
-AsgStmt: ID '=' Expr			{	if(lookupSymbol($1->varname) != NULL){
-										$1->Gentry = lookupSymbol($1->varname);
-										if(($1->Gentry)->nodetype!=tVAR){
-											printf("nodetype is %d\n",($1->Gentry)->nodetype);
-											yyerror("Type mismatch: Expected Var Asg\n");
-										exit(1);
-										}
-										$1->nodetype=tVAR;
-										$1->type=($1->Gentry)->type;
-									} else {
-										yyerror("Variable undeclared\n");
-										exit(1);
-									}
-									$$ = createAsgNode($1, $3);
-								}
-		|ID '[' Expr ']' '=' Expr {	if(lookupSymbol($1->varname) != NULL){
-											$1->Gentry = lookupSymbol($1->varname);
-											if(($1->Gentry)->nodetype!=tARR){
-												yyerror("Type mismatch: Expected Array\n");
-												exit(1);
-											}
-											$1->nodetype=tARR;
-											$1->type=($1->Gentry)->type;
-											if($3->type==intType){
-												if(($3->nodetype==tNUM) && ( $3->val >= $1->Gentry->size)){
-													yyerror("ERROR BITTCHHH : Array out of bounds\n");
-													exit(1);
-												}
-											}
-											$1->middle=$3;
-									} else {
-										yyerror("Variable undeclared\n");
-										exit(1);
-									}				
-									$$ = createAsgNode($1, $6);
-									}
-		|ID '[' Expr ']' '[' Expr ']' '=' Expr {	if(lookupSymbol($1->varname) != NULL){
-														$1->Gentry = lookupSymbol($1->varname);
-														if(($1->Gentry)->nodetype!=tDARR){
-															yyerror("Type mismatch: Expected Double Array\n");
-															exit(1);
-														}
-														$1->nodetype=tDARR;
-														$1->type=($1->Gentry)->type;
-														if($3->type==intType){
-															if(($3->nodetype==tNUM) && ( $3->val >= $1->Gentry->size[0])){
-																yyerror("ERROR BITTCHHH : Array out of bounds\n");
-																exit(1);
-															}
-														}
-														$1->middle=$3;
-														if($6->type==intType){
-															if(($6->nodetype==tNUM) && ( $6->val >= $1->Gentry->size[1])){
-																yyerror("ERROR BITTCHHH : Array out of bounds\n");
-																exit(1);
-															}
-														}
-												$1->right=$6;
-											} else {
-												yyerror("Variable undeclared\n");
-												exit(1);
-											}				
-											$$ = createAsgNode($1, $9);
-											}
+};
+Var: ID 			{	if(lookupSymbol($1->varname) != NULL){
+							$1->Gentry = lookupSymbol($1->varname);
 							
-							;									
+							if(($1->Gentry)->nodetype!=tVAR){
+								yyerror("Type mismatch: Not declared as variable: %s\n",$1->varname);
+								exit(1);
+							}
+							$1->nodetype=tVAR;
+							$1->type=($1->Gentry)->type;
+						} else {
+							yyerror("Variable undeclared: %s\n",$1->varname);
+							exit(1);
+						}
+						$$ = $1;
+					}
+		|ID '[' Expr ']' {	if(lookupSymbol($1->varname) != NULL){
+								$1->Gentry = lookupSymbol($1->varname);
+								
+								if(($1->Gentry)->nodetype!=tARR){
+									yyerror("Type mismatch: Not declared as array: %s\n",$1->varname);
+									exit(1);
+								}
+								
+								$1->nodetype=tARR;
+								$1->type=($1->Gentry)->type;
+								
+								if($3->type==intType){
+									if(($3->nodetype==tNUM) && ( $3->val >= $1->Gentry->size)){
+										yyerror("Array out of bounds\n");
+										exit(1);
+									}
+								}
+								$1->middle=$3;
+							} else {
+								yyerror("Variable undeclared: %s\n",$1->varname);
+								exit(1);
+							}				
+							$$ = $1;
+							}
+		| ID '[' Expr ']' '[' Expr ']'{
+			if(lookupSymbol($1->varname) != NULL){
+				$1->Gentry = lookupSymbol($1->varname);
+				if(($1->Gentry)->nodetype!=tDARR){
+					yyerror("Type mismatch: Not declared as double array: %s\n",$1->varname);
+					exit(1);
+				}
+				$1->nodetype=tDARR;
+				$1->type=($1->Gentry)->type;
+				if($3->type==intType){
+					if(($3->nodetype==tNUM) && ( $3->val >= $1->Gentry->size[0])){
+						yyerror(" Array out of bounds\n");
+						exit(1);
+					}
+				}
+				$1->middle=$3;
+				if($6->type==intType){
+					if(($6->nodetype==tNUM) && ( $6->val >= $1->Gentry->size[1])){
+						yyerror("Array out of bounds\n");
+						exit(1);
+					}
+				}
+				$1->right=$6;
+			} else {
+				yyerror("Variable undeclared:%s\n",$1->varname);
+				exit(1);
+			}				
+			$$ = $1;
+			}
+			;
 
 IfStmt: IF '(' Expr ')' THEN Slist ELSE Slist ENDIF {
 							$$ = createIfNode($3,$6,$8);
 						}
 		| IF '(' Expr ')' THEN Slist ENDIF {
 							$$ = createIfNode($3,$6,NULL);
-						};
-						
+						}
+						;
 WhileStmt: WHILE '(' Expr ')' DO Slist ENDWHILE {
 							$$ = createWhileNode($3,$6);
 							};
@@ -318,7 +337,7 @@ Expr : Expr "+" Expr	{
 								if($6->type==intType){
 									$1->right = $6;
 									if(($6->nodetype==tNUM) && ( $6->val >= $1->Gentry->size[1])){
-										yyerror("ERROR BIITTCHH: Array out of bounds\n");
+										yyerror("Array out of bounds\n");
 										exit(1);
 									}
 								} else {
@@ -339,7 +358,7 @@ Expr : Expr "+" Expr	{
 
 yyerror(char const *s)
 {
-    printf("yyerror %s\n",s);
+    printf("error: %s\n",s);
 }
 
 
