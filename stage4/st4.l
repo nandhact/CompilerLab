@@ -78,6 +78,10 @@ int {
 str {
 	return STR;
 }
+breakpoint {
+	return BRKP;
+}
+
 "<"	return LT;
 ">"	return GT;
 "<="	return LE;
@@ -96,6 +100,7 @@ str {
 		
 "[" {return *yytext;}
 "]" {return *yytext;}
+"&" {return *yytext;}
 
 [\"].*[\"] {
 		char * temp = strdup(yytext);

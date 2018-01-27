@@ -7,3 +7,5 @@ typedef struct labelItem {
 
 
 struct labelItem* hashArray[SIZE];
+void incLine();
+void fstrcpy(FILE *fp, char* s);
